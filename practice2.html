@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Task Manager</title>
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { font-family: 'Helvetica', sans-serif; }
+        .container { max-width: 900px; margin: 20px auto; text-align: center; }
+
+        button {
+            width: 100px;
+            padding: 5px;
+            background-color: #D9D9D9;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        input {
+            height: 50px;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"] {
+            width: 360px;
+            font-size: 24px;
+        }
+
+        input:hover { border-color: #aaa; }
+        input:focus { border-color: #007bff; box-shadow: 0 0 8px rgba(0, 123, 255, 0.3); }
+
+        .note-card {
+            position: relative;
+            background: #D9D9D9;
+            padding: 10px;
+            margin-bottom: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .note-content {
+            background-color: #FC9F9F;
+            width: 650px;
+            height: 46px;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .completed { opacity: 0.5; text-decoration: line-through; }
+
+        .date-box {
+            background: #F71616;
+            width: 150px;
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        .date-box__bottom {
+            text-align: center;
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        .note-add {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0 60px;
+        }
+
+        .note-add__actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useContext, createContext } = React;
+        const DataContext = createContext();
+
+        function DataProvider({ children }) {
+            const [tasks, setTasks] = useState([
+                { id: 1, content: "Proverka123", completed: false, date: new Date().toISOString().slice(0, 10), time: new Date().toTimeString().slice(0, 5) }
+            ]);
+            return (
+                <DataContext.Provider value={{ tasks, setTasks }}>
+                    {children}
+                </DataContext.Provider>
+            );
+        }
+
+        function NoteCard({ task, onEdit, onDelete, onComplete }) {
+            return (
+                <div className={`note-card ${task.completed ? "completed" : ""}`}>
+                    <div className="note-content">
+                        {task.completed ? "✔ " : ""}{task.content}
+                    </div>
+                    <div className="date-box">
+                        <div className="date-box__bottom">{task.date} {task.time}</div>
+                    </div>
+                    <div className="note-actions">
+                        <button onClick={() => onComplete(task.id)}>✔</button>
+                        <button onClick={() => onEdit(task.id)}>✏</button>
+                        <button onClick={() => onDelete(task.id)}>🗑</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function NoteList() {
+            const { tasks, setTasks } = useContext(DataContext);
+
+            const handleDelete = (id) => {
+                setTasks(tasks.filter(task => task.id !== id));
+            };
+
+            const handleComplete = (id) => {
+                setTasks(tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
+            };
+
+            const handleEdit = (id) => {
+                const task = tasks.find(t => t.id === id);
+                const newContent = prompt("Редактировать задачу:", task.content);
+                const newDate = prompt("Введите новую дату (YYYY-MM-DD):", task.date);
+                const newTime = prompt("Введите новое время (HH:MM):", task.time);
+
+                if (newContent !== null && newDate !== null && newTime !== null) {
+                    setTasks(tasks.map(task => task.id === id ? { ...task, content: newContent, date: newDate, time: newTime } : task));
+                }
+            };
+
+            return (
+                <div>
+                    {tasks.map(task => (
+                        <NoteCard key={task.id} task={task} onDelete={handleDelete} onComplete={handleComplete} onEdit={handleEdit} />
+                    ))}
+                </div>
+            );
+        }
+
+        function NoteAdd() {
+            const { tasks, setTasks } = useContext(DataContext);
+            const [newNote, setNewNote] = useState("");
+            const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+            const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+
+            const addTask = () => {
+                if (!newNote.trim()) return;
+                setTasks([...tasks, { id: tasks.length + 1, content: newNote, completed: false, date, time }]);
+                clearFields();
+            };
+
+            const clearFields = () => {
+                setNewNote("");
+                setDate(new Date().toISOString().slice(0, 10));
+                setTime(new Date().toTimeString().slice(0, 5));
+            };
+
+            return (
+                <div className="note-add">
+                    <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Введите задачу" />
+                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                    <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                    <div className="note-add__actions">
+                        <button onClick={addTask}>Добавить</button>
+                        <button onClick={clearFields}>Очистить</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
+            return (
+                <DataProvider>
+                    <div className="container">
+                        <h1>React Task Manager</h1>
+                        <NoteAdd />
+                        <NoteList />
+                    </div>
+                </DataProvider>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById("root"));
+    </script>
+
+</body>
+</html>
